@@ -121,23 +121,32 @@ def open_settings_window():
 
 # Функция для рисования сетки
 def draw_grid():
+    # Рисование сетки
     for x in range(0, WINDOW_WIDTH, CELL_SIZE):
-        pygame.draw.line(screen, BLACK, (x, 0), (x, WINDOW_HEIGHT))
-    for y in range(0, WINDOW_HEIGHT, CELL_SIZE):
-        pygame.draw.line(screen, BLACK, (0, y), (WINDOW_WIDTH, y))
+        for y in range(0, WINDOW_HEIGHT, CELL_SIZE):
+            # Рисование горизонтальных и вертикальных линий
+            pygame.draw.line(screen, BLACK, (x, 0), (x, WINDOW_HEIGHT), 1)
+            pygame.draw.line(screen, BLACK, (0, y), (WINDOW_WIDTH, y), 1)
+
+            # Рисование диагональных линий
+            pygame.draw.line(screen, BLACK, (x, y), (x + CELL_SIZE, y + CELL_SIZE), 1)
+            pygame.draw.line(screen, BLACK, (x + CELL_SIZE, y), (x, y + CELL_SIZE), 1)
+
 
 # Функция для рисования игрока
-def draw_player(player_pos, COLOR):
-    pygame.draw.rect(screen, COLOR, (player_pos[0] * CELL_SIZE, player_pos[1] * CELL_SIZE, CELL_SIZE, CELL_SIZE))
+def draw_player(player_pos, PLAYER_COLOR):
+    # Определяем координаты точки на линии сетки
+    x = player_pos[0] * CELL_SIZE + CELL_SIZE // 2
+    y = player_pos[1] * CELL_SIZE + CELL_SIZE // 2
+
+    # Рисуем точку на линии сетки
+    pygame.draw.circle(screen, PLAYER_COLOR, (x, y), 5)
 
 # Функция для вычисления расстояния между игроком и целью
 def get_distance(player_pos, target_pos):
     dx = abs(player_pos[0] - target_pos[0])
     dy = abs(player_pos[1] - target_pos[1])
     return dx + dy
-
-def draw_target(target_x, target_y):
-    pygame.draw.rect(screen, RED, (target_x * CELL_SIZE, target_y * CELL_SIZE, CELL_SIZE, CELL_SIZE))
 
 # Основной цикл игры
 def main_game_loop():
@@ -164,33 +173,69 @@ def main_game_loop():
         current_time = time.time()
 
         if current_time - last_move_time >= move_delay:
-            if keys[pygame.K_LEFT] and player_pos[0] > 0:
-                player_pos[0] -= 1
-                last_move_time = current_time
-                n += 1
-            if keys[pygame.K_RIGHT] and player_pos[0] < GRID_WIDTH - 1:
-                player_pos[0] += 1
-                last_move_time = current_time
-                n += 1
-            if keys[pygame.K_UP] and player_pos[1] > 0:
-                player_pos[1] -= 1
-                last_move_time = current_time
-                n += 1
-            if keys[pygame.K_DOWN] and player_pos[1] < GRID_HEIGHT - 1:
-                player_pos[1] += 1
+            dx = 0
+            dy = 0
+
+            if keys[pygame.K_LEFT]:
+                dx = -0.5
+            elif keys[pygame.K_RIGHT]:
+                dx = 0.5
+            elif keys[pygame.K_UP]:
+                dy = -0.5
+            elif keys[pygame.K_DOWN]:
+                dy = 0.5
+
+            new_x = player_pos[0] + dx
+            new_y = player_pos[1] + dy
+
+            # Проверяем, чтобы новая позиция игрока была в пределах игрового поля
+            if new_x >= 0 and new_x < GRID_WIDTH and new_y >= 0 and new_y < GRID_HEIGHT:
+                player_pos = [new_x, new_y]
                 last_move_time = current_time
                 n += 1
 
         # Обновление позиции цели
         if n == N:
-            dx = random.randint(-1, 1)
-            dy = random.randint(-1, 1)
+            dx = 0
+            dy = 0
+
+            if player_pos[0] > target_pos[0]:
+                dx = -0.5
+            elif player_pos[0] < target_pos[0]:
+                dx = 0.5
+
+            if player_pos[1] > target_pos[1]:
+                dy = -0.5
+            elif player_pos[1] < target_pos[1]:
+                dy = 0.5
+
             new_x = target_pos[0] + dx
             new_y = target_pos[1] + dy
-            if 0 <= new_x < GRID_WIDTH and 0 <= new_y < GRID_HEIGHT:
-                target_pos = [new_x, new_y]
-            else:
-                target_pos = [GRID_WIDTH - new_x, GRID_HEIGHT - new_y]
+
+            # Проверяем, чтобы новая позиция цели была в пределах игрового поля
+            if new_x < 0:
+                new_x = 0.5
+            elif new_x >= GRID_WIDTH:
+                new_x = GRID_WIDTH - 1
+
+            if new_y < 0:
+                new_y = 0.5
+            elif new_y >= GRID_HEIGHT:
+                new_y = GRID_HEIGHT - 1
+
+            # Если цель находится в углу, двигаем ее в сторону от угла
+            if (new_x == 0 and new_y == 0) or (new_x == GRID_WIDTH - 1 and new_y == 0) or (
+                    new_x == 0 and new_y == GRID_HEIGHT - 1) or (new_x == GRID_WIDTH - 1 and new_y == GRID_HEIGHT - 1):
+                if dx < 0:
+                    new_x = 0.5
+                elif dx > 0:
+                    new_x = GRID_WIDTH - 1
+                if dy < 0:
+                    new_y = 0.5
+                elif dy > 0:
+                    new_y = GRID_HEIGHT - 1
+
+            target_pos = [new_x, new_y]
             print(f"Расстояние до цели: {distance}")
             n = 0
 
