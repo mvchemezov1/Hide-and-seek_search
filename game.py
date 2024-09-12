@@ -9,8 +9,8 @@ pygame.init()
 WINDOW_WIDTH = 800
 WINDOW_HEIGHT = 600
 CELL_SIZE = 50
-GRID_WIDTH = 10
-GRID_HEIGHT = 10
+GRID_WIDTH = 12
+GRID_HEIGHT = 12
 N = 5
 
 # Создание окна
@@ -122,6 +122,8 @@ def open_settings_window():
 # Функция для рисования сетки
 def draw_grid():
     # Рисование сетки
+    WINDOW_WIDTH = CELL_SIZE * GRID_WIDTH
+    WINDOW_HEIGHT = CELL_SIZE * GRID_HEIGHT
     for x in range(0, WINDOW_WIDTH, CELL_SIZE):
         for y in range(0, WINDOW_HEIGHT, CELL_SIZE):
             # Рисование горизонтальных и вертикальных линий
@@ -131,6 +133,12 @@ def draw_grid():
             # Рисование диагональных линий
             pygame.draw.line(screen, BLACK, (x, y), (x + CELL_SIZE, y + CELL_SIZE), 1)
             pygame.draw.line(screen, BLACK, (x + CELL_SIZE, y), (x, y + CELL_SIZE), 1)
+
+            # Рисование вертикальной линии, разделяющей квадрат пополам
+            pygame.draw.line(screen, BLACK, (x + CELL_SIZE // 2, y), (x + CELL_SIZE // 2, y + CELL_SIZE), 1)
+
+            # Рисование горизонтальной линии, разделяющей квадрат пополам
+            pygame.draw.line(screen, BLACK, (x, y + CELL_SIZE // 2), (x + CELL_SIZE, y + CELL_SIZE // 2), 1)
 
 
 # Функция для рисования игрока
@@ -149,110 +157,173 @@ def get_distance(player_pos, target_pos):
     return dx + dy
 
 # Основной цикл игры
+
 def main_game_loop():
-    # Начальные позиции игрока и цели
     global distance
     player_pos = [0, 0]
     target_pos = [random.randint(1, GRID_WIDTH - 1), random.randint(1, GRID_HEIGHT - 1)]
     last_move_time = 0
-    move_delay = 0.1  # Задержка между перемещениями (в секундах)
+    move_delay = 0.1
 
     n = 0
-
-    # Счетчик ходов
     running = True
 
+    # Вывод расстояния до цели в начале игры
+    distance = get_distance(player_pos, target_pos)
+    print(f"Расстояние до цели: {distance}")
+
     while running:
-        # Обработка событий
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
 
-        # Обновление позиции игрока
         keys = pygame.key.get_pressed()
         current_time = time.time()
 
+        def update_position(pos, dx, dy):
+            # Проверяем, чтобы новая позиция была в пределах игрового поля
+            new_x = pos[0] + dx
+            new_y = pos[1] + dy
+
+            # Проверка на наличие ромба между квадратами
+            if dx != 0 and dy != 0:
+                # Проверяем препятствие
+                if is_blocked(pos[0], pos[1], dx, dy):
+                    return pos  # Если движение по диагонали заблокировано, возвращаем текущую позицию
+
+            # Проверка границ игрового поля
+            if 0 <= new_x < GRID_WIDTH and 0 <= new_y < GRID_HEIGHT:
+                pos[0] = new_x
+                pos[1] = new_y
+
+            # Округляем до целого числа, если игрок на линии
+            pos[0] = round(pos[0] * 2) / 2
+            pos[1] = round(pos[1] * 2) / 2
+
+            return pos
+
+        def is_blocked(x, y, dx, dy):
+            # Проверяем, есть ли ромб между квадратами в направлении движения (dx, dy)
+            # Это примерная функция, которую нужно адаптировать под ваше игровое поле
+            # Возвращаем True, если движение заблокировано, и False в противном случае
+            if (dx == 0.5 and dy == 0.5) or (dx == -0.5 and dy == 0.5):
+                # Проверка наличия ромба по диагонали вправо-вниз или влево-вниз
+                if is_diamond_present(x, y):
+                    return True
+            elif (dx == 0.5 and dy == -0.5) or (dx == -0.5 and dy == -0.5):
+                # Проверка наличия ромба по диагонали вправо-вверх или влево-вверх
+                if is_diamond_present(x, y):
+                    return True
+
+            return False
+
+        def is_diamond_present(x, y):
+            # Примерная функция для проверки наличия ромба между квадратами
+            # В данной реализации мы проверяем существование ромба в верхнем левом углу
+            # и в правом нижнем углу квадрата, который задается координатами (x, y)
+            # Это примерная логика, которую нужно адаптировать под вашу конкретную сетку
+
+            # Проверка ромба в верхнем левом углу квадрата
+            if x > 0 and y > 0:
+                if (x % (CELL_SIZE // 2) == 0) and (y % (CELL_SIZE // 2) == 0):
+                    return True
+
+            # Проверка ромба в правом нижнем углу квадрата
+            if (x + CELL_SIZE < WINDOW_WIDTH) and (y + CELL_SIZE < WINDOW_HEIGHT):
+                if ((x + CELL_SIZE) % (CELL_SIZE // 2) == 0) and ((y + CELL_SIZE) % (CELL_SIZE // 2) == 0):
+                    return True
+
+            return False
+
+
+        # В основной цикл добавьте проверку на движение по диагонали
         if current_time - last_move_time >= move_delay:
             dx = 0
             dy = 0
 
             if keys[pygame.K_LEFT]:
-                dx = -0.5
+                dx = -1
+                n += 1
             elif keys[pygame.K_RIGHT]:
-                dx = 0.5
+                dx = 1
+                n += 1
             elif keys[pygame.K_UP]:
-                dy = -0.5
+                dy = -1
+                n += 1
             elif keys[pygame.K_DOWN]:
-                dy = 0.5
-
-            new_x = player_pos[0] + dx
-            new_y = player_pos[1] + dy
-
-            # Проверяем, чтобы новая позиция игрока была в пределах игрового поля
-            if new_x >= 0 and new_x < GRID_WIDTH and new_y >= 0 and new_y < GRID_HEIGHT:
-                player_pos = [new_x, new_y]
-                last_move_time = current_time
+                dy = 1
                 n += 1
 
-        # Обновление позиции цели
-        if n == N:
+            # Поддержка диагонального движения
+            if keys[pygame.K_LEFT] and keys[pygame.K_UP]:
+                dx = -0.5
+                dy = -0.5
+                n += 1
+            elif keys[pygame.K_LEFT] and keys[pygame.K_DOWN]:
+                dx = -0.5
+                dy = 0.5
+                n += 1
+            elif keys[pygame.K_RIGHT] and keys[pygame.K_UP]:
+                dx = 0.5
+                dy = -0.5
+                n += 1
+            elif keys[pygame.K_RIGHT] and keys[pygame.K_DOWN]:
+                dx = 0.5
+                dy = 0.5
+                n += 1
+
+            player_pos = update_position(player_pos, dx, dy)
+            last_move_time = current_time
+
+        if n > N:
             dx = 0
             dy = 0
 
+            # Вычисляем направление движения к цели
             if player_pos[0] > target_pos[0]:
-                dx = -0.5
+                dx = -1  # Движение влево
+                print("Расстояние до цели:" + str(distance))
             elif player_pos[0] < target_pos[0]:
-                dx = 0.5
-
+                dx = 1  # Движение вправо
+                print("Расстояние до цели:" + str(distance))
             if player_pos[1] > target_pos[1]:
-                dy = -0.5
+                dy = -1  # Движение вверх
+                print("Расстояние до цели:" + str(distance))
             elif player_pos[1] < target_pos[1]:
+                dy = 1  # Движение вниз
+                print("Расстояние до цели:" + str(distance))
+
+            # Диагональное движение
+            if abs(player_pos[0] - target_pos[0]) == abs(player_pos[1] - target_pos[1]):
+                if dx != 0 and dy != 0:
+                    dx *= 0.5
+                    dy *= 0.5
+                print("Расстояние до цели:" + str(distance))
+
+            # Поворот в углу для цели
+            if (player_pos[0] == target_pos[0] and player_pos[1] < target_pos[1]) or \
+                    (player_pos[0] < target_pos[0] and player_pos[1] == target_pos[1]):
+                dx = 0.5
                 dy = 0.5
+            elif (player_pos[0] == target_pos[0] and player_pos[1] > target_pos[1]) or \
+                    (player_pos[0] > target_pos[0] and player_pos[1] == target_pos[1]):
+                dx = -0.5
+                dy = -0.5
 
-            new_x = target_pos[0] + dx
-            new_y = target_pos[1] + dy
-
-            # Проверяем, чтобы новая позиция цели была в пределах игрового поля
-            if new_x < 0:
-                new_x = 0.5
-            elif new_x >= GRID_WIDTH:
-                new_x = GRID_WIDTH - 1
-
-            if new_y < 0:
-                new_y = 0.5
-            elif new_y >= GRID_HEIGHT:
-                new_y = GRID_HEIGHT - 1
-
-            # Если цель находится в углу, двигаем ее в сторону от угла
-            if (new_x == 0 and new_y == 0) or (new_x == GRID_WIDTH - 1 and new_y == 0) or (
-                    new_x == 0 and new_y == GRID_HEIGHT - 1) or (new_x == GRID_WIDTH - 1 and new_y == GRID_HEIGHT - 1):
-                if dx < 0:
-                    new_x = 0.5
-                elif dx > 0:
-                    new_x = GRID_WIDTH - 1
-                if dy < 0:
-                    new_y = 0.5
-                elif dy > 0:
-                    new_y = GRID_HEIGHT - 1
-
-            target_pos = [new_x, new_y]
-            print(f"Расстояние до цели: {distance}")
+            target_pos = update_position(target_pos, dx, dy)
             n = 0
 
-        # Проверка, достиг ли игрок цели
         distance = get_distance(player_pos, target_pos)
         if distance == 0:
             print("Вы поймали цель!")
             running = False
             continue
 
-        # Отображение игрового поля и игрока
         screen.fill(WHITE)
         draw_grid()
         draw_player(player_pos, BLUE)
-        draw_player(target_pos, RED)
+        #draw_player(target_pos, RED)
 
-        # Отрисовка цели
         pygame.display.flip()
 
     pygame.quit()
