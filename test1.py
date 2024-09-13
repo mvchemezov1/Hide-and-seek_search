@@ -2,7 +2,6 @@ import pygame
 import random
 import time
 
-
 # Инициализация Pygame
 pygame.init()
 
@@ -120,44 +119,6 @@ def open_settings_window():
 
     pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
 
-# Функция для создания графа
-def create_graph(grid_width, grid_height, cell_size):
-    graph = [[[] for _ in range(grid_width)] for _ in range(grid_height)]
-
-    # Соседние ячейки по горизонтали и вертикали
-    for x in range(grid_width):
-        for y in range(grid_height):
-            if x < grid_width - 1:
-                graph[y][x].append((y, x + 1))
-            if x > 0:
-                graph[y][x].append((y, x - 1))
-            if y < grid_height - 1:
-                graph[y][x].append((y + 1, x))
-            if y > 0:
-                graph[y][x].append((y - 1, x))
-
-    # Диагональные ячейки
-    for x in range(grid_width - 1):
-        for y in range(grid_height - 1):
-            graph[y][x].append((y + 1, x + 1))
-            graph[y + 1][x].append((y, x + 1))
-            graph[y][x + 1].append((y + 1, x))
-            graph[y + 1][x + 1].append((y, x))
-
-    # Ячейки, разделяющие квадрат пополам
-    for x in range(0, grid_width, cell_size // 2):
-        for y in range(0, grid_height, cell_size // 2):
-            if x < grid_width - cell_size // 2:
-                graph[y][x].append((y, x + cell_size // 2))
-            if x > 0:
-                graph[y][x].append((y, x - cell_size // 2))
-            if y < grid_height - cell_size // 2:
-                graph[y][x].append((y + cell_size // 2, x))
-            if y > 0:
-                graph[y][x].append((y - cell_size // 2, x))
-
-    return graph
-
 def draw_graf():
     graph = [[[] for _ in range(GRID_WIDTH)] for _ in range(GRID_HEIGHT)]
 
@@ -173,18 +134,15 @@ def draw_graf():
             if y > 0:
                 graph[y][x].append((y - 1, x))
 
-    # Диагональные ячейки
+    # Диагональные ячейки (с небольшим изменением для целочисленных координат)
     for x in range(GRID_WIDTH - 1):
         for y in range(GRID_HEIGHT - 1):
-            graph[y][x].append((y + 1, x + 1))
-            graph[y][x].append((y + 0.5, x + 0.5))
-            graph[y + 1][x].append((y, x + 1))
-            graph[y + 1][x].append((y, x + 0.5))
-            graph[y][x + 1].append((y + 1, x))
-            graph[y][x + 1].append((y + 0.5, x))
-            graph[y + 1][x + 1].append((y, x))
+            graph[y][x].append((y, x + 1)) # Верхняя правая
+            graph[y + 1][x].append((y, x)) # Нижняя левая
+            graph[y][x + 1].append((y + 1, x)) # Верхняя левая
+            graph[y + 1][x + 1].append((y, x)) # Нижняя правая
 
-    # Ячейки, разделяющие квадрат пополам
+    # Ячейки, разделяющие квадрат пополам (с небольшим изменением для целочисленных координат)
     for x in range(0, GRID_WIDTH, CELL_SIZE // 2):
         for y in range(0, GRID_HEIGHT, CELL_SIZE // 2):
             if x < GRID_WIDTH - CELL_SIZE // 2:
@@ -230,39 +188,39 @@ def draw_player(player_pos, PLAYER_COLOR):
 def get_distance(player_pos, target_pos):
     gr = draw_graf()
     distances = [[float('inf') for _ in range(GRID_WIDTH)] for _ in range(GRID_HEIGHT)]
-    distances[int(player_pos[0])][int(player_pos[1])] = 0
+    distances[player_pos[0]][player_pos[1]] = 0 # Удалили int() здесь
     parents = [[None for _ in range(GRID_WIDTH)] for _ in range(GRID_HEIGHT)]
     visited = [player_pos]
 
     # Проверяем, что начальная и целевая позиции находятся внутри графа
-    if (0 <= (player_pos[0]) < GRID_HEIGHT and 0 <= (player_pos[1]) < GRID_WIDTH and
-        0 <= int(target_pos[0]) < GRID_HEIGHT and 0 <= int(target_pos[1]) < GRID_WIDTH):
+    if (0 <= player_pos[0] < GRID_HEIGHT and 0 <= player_pos[1] < GRID_WIDTH and
+        0 <= target_pos[0] < GRID_HEIGHT and 0 <= target_pos[1] < GRID_WIDTH):
         while visited:
-            current = min(visited, key=lambda x: distances[int(x[0])][int(x[1])])
+            current = min(visited, key=lambda x: distances[x[0]][x[1]]) # Удалили int() здесь
             visited.remove(current)
-
             if current == target_pos:
                 break
 
-            for neighbor in gr[int(current[0])][int(current[1])]:
-                distance = distances[int(current[0])][int(current[1])] + 1 if current[0] == neighbor[0] or current[1] == neighbor[1] else distances[int(current[0])][int(current[1])] + 0.5
-                if distance < distances[int(neighbor[0])][int(neighbor[1])]:
-                    distances[int(neighbor[0])][int(neighbor[1])] = distance
-                    parents[int(neighbor[0])][int(neighbor[1])] = current
+            for neighbor in gr[current[0]][current[1]]: # Удалили int() здесь
+                distance = distances[current[0]][current[1]] + 1
+                if distance < distances[neighbor[0]][neighbor[1]]: # Удалили int() здесь
+                    distances[neighbor[0]][neighbor[1]] = distance
+                    parents[neighbor[0]][neighbor[1]] = current # Удалили int() здесь
                     visited.append(neighbor)
 
         path = []
         current = target_pos
         while current is not None:
             path.append(current)
-            current = parents[int(current[0])][int(current[1])]
+            current = parents[current[0]][current[1]] # Удалили int() здесь
 
-        if distances[int(target_pos[0])][int(target_pos[1])] == float('inf'):
-            return -1, []
+        if distances[target_pos[0]][target_pos[1]] == float('inf'):
+            return -1
         else:
-            return distances[int(target_pos[0])][int(target_pos[1])]
+            return distances[target_pos[0]][target_pos[1]]# Вернули path
     else:
-        return -1, []
+        return -1
+
 
 # Основной цикл игры
 
@@ -305,8 +263,8 @@ def main_game_loop():
                 pos[1] = new_y
 
             # Округляем до целого числа, если игрок на линии
-            pos[0] = round(pos[0] * 2) / 2
-            pos[1] = round(pos[1] * 2) / 2
+            pos[0] = round((pos[0] * 2) / 2)
+            pos[1] = round((pos[1] * 2) / 2)
 
             return pos
 
@@ -314,11 +272,11 @@ def main_game_loop():
             # Проверяем, есть ли ромб между квадратами в направлении движения (dx, dy)
             # Это примерная функция, которую нужно адаптировать под ваше игровое поле
             # Возвращаем True, если движение заблокировано, и False в противном случае
-            if (dx == 0.5 and dy == 0.5) or (dx == -0.5 and dy == 0.5):
+            if (dx == 1 and dy == 1) or (dx == -1 and dy == 1):
                 # Проверка наличия ромба по диагонали вправо-вниз или влево-вниз
                 if is_diamond_present(x, y):
                     return True
-            elif (dx == 0.5 and dy == -0.5) or (dx == -0.5 and dy == -0.5):
+            elif (dx == 1 and dy == -1) or (dx == -1 and dy == -1):
                 # Проверка наличия ромба по диагонали вправо-вверх или влево-вверх
                 if is_diamond_present(x, y):
                     return True
@@ -364,20 +322,20 @@ def main_game_loop():
 
             # Поддержка диагонального движения
             if keys[pygame.K_LEFT] and keys[pygame.K_UP]:
-                dx = -0.5
-                dy = -0.5
+                dx = -1
+                dy = -1
                 n += 1
             elif keys[pygame.K_LEFT] and keys[pygame.K_DOWN]:
-                dx = -0.5
-                dy = 0.5
+                dx = -1
+                dy = 1
                 n += 1
             elif keys[pygame.K_RIGHT] and keys[pygame.K_UP]:
-                dx = 0.5
-                dy = -0.5
+                dx = 1
+                dy = -1
                 n += 1
             elif keys[pygame.K_RIGHT] and keys[pygame.K_DOWN]:
-                dx = 0.5
-                dy = 0.5
+                dx = 1
+                dy = 1
                 n += 1
 
             player_pos = update_position(player_pos, dx, dy)
@@ -404,19 +362,19 @@ def main_game_loop():
             # Диагональное движение
             if abs(player_pos[0] - target_pos[0]) == abs(player_pos[1] - target_pos[1]):
                 if dx != 0 and dy != 0:
-                    dx *= 0.5
-                    dy *= 0.5
+                    dx *= 1
+                    dy *= 1
                 print("Расстояние до цели:" + str(path))
 
             # Поворот в углу для цели
             if (player_pos[0] == target_pos[0] and player_pos[1] < target_pos[1]) or \
                     (player_pos[0] < target_pos[0] and player_pos[1] == target_pos[1]):
-                dx = 0.5
-                dy = 0.5
+                dx = 1
+                dy = 1
             elif (player_pos[0] == target_pos[0] and player_pos[1] > target_pos[1]) or \
                     (player_pos[0] > target_pos[0] and player_pos[1] == target_pos[1]):
-                dx = -0.5
-                dy = -0.5
+                dx = -1
+                dy = -1
 
             target_pos = update_position(target_pos, dx, dy)
             n = 0
