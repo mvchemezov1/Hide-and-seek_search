@@ -119,8 +119,25 @@ def open_settings_window():
 
     pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
 
+def draw_graf():
+    graph = [[[] for _ in range(GRID_WIDTH)] for _ in range(GRID_HEIGHT)]
+
+    # Соседние ячейки по горизонтали, вертикали и диагонали
+    for x in range(GRID_WIDTH):
+        for y in range(GRID_HEIGHT):
+            for dx in [-1, 0, 1]:
+                for dy in [-1, 0, 1]:
+                    if dx != 0 or dy != 0:
+                        new_x = x + dx
+                        new_y = y + dy
+                        if 0 <= new_x < GRID_WIDTH and 0 <= new_y < GRID_HEIGHT:
+                            graph[y][x].append((new_y, new_x))
+
+    return graph
+
 # Функция для рисования сетки
 def draw_grid():
+    global gr
     # Рисование сетки
     WINDOW_WIDTH = CELL_SIZE * GRID_WIDTH
     WINDOW_HEIGHT = CELL_SIZE * GRID_HEIGHT
@@ -129,17 +146,6 @@ def draw_grid():
             # Рисование горизонтальных и вертикальных линий
             pygame.draw.line(screen, BLACK, (x, 0), (x, WINDOW_HEIGHT), 1)
             pygame.draw.line(screen, BLACK, (0, y), (WINDOW_WIDTH, y), 1)
-
-            # Рисование диагональных линий
-            pygame.draw.line(screen, BLACK, (x, y), (x + CELL_SIZE, y + CELL_SIZE), 1)
-            pygame.draw.line(screen, BLACK, (x + CELL_SIZE, y), (x, y + CELL_SIZE), 1)
-
-            # Рисование вертикальной линии, разделяющей квадрат пополам
-            pygame.draw.line(screen, BLACK, (x + CELL_SIZE // 2, y), (x + CELL_SIZE // 2, y + CELL_SIZE), 1)
-
-            # Рисование горизонтальной линии, разделяющей квадрат пополам
-            pygame.draw.line(screen, BLACK, (x, y + CELL_SIZE // 2), (x + CELL_SIZE, y + CELL_SIZE // 2), 1)
-
 
 # Функция для рисования игрока
 def draw_player(player_pos, PLAYER_COLOR):
@@ -152,14 +158,46 @@ def draw_player(player_pos, PLAYER_COLOR):
 
 # Функция для вычисления расстояния между игроком и целью
 def get_distance(player_pos, target_pos):
-    dx = abs(player_pos[0] - target_pos[0])
-    dy = abs(player_pos[1] - target_pos[1])
-    return dx + dy
+    gr = draw_graf()
+    distances = [[float('inf') for _ in range(GRID_WIDTH)] for _ in range(GRID_HEIGHT)]
+    distances[player_pos[0]][player_pos[1]] = 0
+    parents = [[None for _ in range(GRID_WIDTH)] for _ in range(GRID_HEIGHT)]
+    visited = [player_pos]
+
+    # Проверяем, что начальная и целевая позиции находятся внутри графа
+    if (0 <= player_pos[0] < GRID_HEIGHT and 0 <= player_pos[1] < GRID_WIDTH and
+        0 <= target_pos[0] < GRID_HEIGHT and 0 <= target_pos[1] < GRID_WIDTH):
+        while visited:
+            current = min(visited, key=lambda x: distances[x[0]][x[1]])
+            visited.remove(current)
+            if current == target_pos:
+                break
+
+            for neighbor in gr[current[0]][current[1]]:
+                distance = distances[current[0]][current[1]] + 1
+                if distance < distances[neighbor[0]][neighbor[1]]:
+                    distances[neighbor[0]][neighbor[1]] = distance
+                    parents[neighbor[0]][neighbor[1]] = current
+                    visited.append(neighbor)
+
+        path = []
+        current = target_pos
+        while current is not None:
+            path.append(current)
+            current = parents[current[0]][current[1]]
+
+        if distances[target_pos[0]][target_pos[1]] == float('inf'):
+            return -1
+        else:
+            return distances[target_pos[0]][target_pos[1]]
+    else:
+        return -1
+
 
 # Основной цикл игры
 
 def main_game_loop():
-    global distance
+    global path
     player_pos = [0, 0]
     target_pos = [random.randint(1, GRID_WIDTH - 1), random.randint(1, GRID_HEIGHT - 1)]
     last_move_time = 0
@@ -169,8 +207,8 @@ def main_game_loop():
     running = True
 
     # Вывод расстояния до цели в начале игры
-    distance = get_distance(player_pos, target_pos)
-    print(f"Расстояние до цели: {distance}")
+    path = get_distance(player_pos, target_pos)
+    print(f"Расстояние до цели: {path}")
 
     while running:
         for event in pygame.event.get():
@@ -184,57 +222,14 @@ def main_game_loop():
             # Проверяем, чтобы новая позиция была в пределах игрового поля
             new_x = pos[0] + dx
             new_y = pos[1] + dy
-
-            # Проверка на наличие ромба между квадратами
-            if dx != 0 and dy != 0:
                 # Проверяем препятствие
-                if is_blocked(pos[0], pos[1], dx, dy):
-                    return pos  # Если движение по диагонали заблокировано, возвращаем текущую позицию
 
             # Проверка границ игрового поля
             if 0 <= new_x < GRID_WIDTH and 0 <= new_y < GRID_HEIGHT:
                 pos[0] = new_x
                 pos[1] = new_y
 
-            # Округляем до целого числа, если игрок на линии
-            pos[0] = round(pos[0] * 2) / 2
-            pos[1] = round(pos[1] * 2) / 2
-
             return pos
-
-        def is_blocked(x, y, dx, dy):
-            # Проверяем, есть ли ромб между квадратами в направлении движения (dx, dy)
-            # Это примерная функция, которую нужно адаптировать под ваше игровое поле
-            # Возвращаем True, если движение заблокировано, и False в противном случае
-            if (dx == 0.5 and dy == 0.5) or (dx == -0.5 and dy == 0.5):
-                # Проверка наличия ромба по диагонали вправо-вниз или влево-вниз
-                if is_diamond_present(x, y):
-                    return True
-            elif (dx == 0.5 and dy == -0.5) or (dx == -0.5 and dy == -0.5):
-                # Проверка наличия ромба по диагонали вправо-вверх или влево-вверх
-                if is_diamond_present(x, y):
-                    return True
-
-            return False
-
-        def is_diamond_present(x, y):
-            # Примерная функция для проверки наличия ромба между квадратами
-            # В данной реализации мы проверяем существование ромба в верхнем левом углу
-            # и в правом нижнем углу квадрата, который задается координатами (x, y)
-            # Это примерная логика, которую нужно адаптировать под вашу конкретную сетку
-
-            # Проверка ромба в верхнем левом углу квадрата
-            if x > 0 and y > 0:
-                if (x % (CELL_SIZE // 2) == 0) and (y % (CELL_SIZE // 2) == 0):
-                    return True
-
-            # Проверка ромба в правом нижнем углу квадрата
-            if (x + CELL_SIZE < WINDOW_WIDTH) and (y + CELL_SIZE < WINDOW_HEIGHT):
-                if ((x + CELL_SIZE) % (CELL_SIZE // 2) == 0) and ((y + CELL_SIZE) % (CELL_SIZE // 2) == 0):
-                    return True
-
-            return False
-
 
         # В основной цикл добавьте проверку на движение по диагонали
         if current_time - last_move_time >= move_delay:
@@ -256,20 +251,20 @@ def main_game_loop():
 
             # Поддержка диагонального движения
             if keys[pygame.K_LEFT] and keys[pygame.K_UP]:
-                dx = -0.5
-                dy = -0.5
+                dx = -1
+                dy = -1
                 n += 1
             elif keys[pygame.K_LEFT] and keys[pygame.K_DOWN]:
-                dx = -0.5
-                dy = 0.5
+                dx = -1
+                dy = 1
                 n += 1
             elif keys[pygame.K_RIGHT] and keys[pygame.K_UP]:
-                dx = 0.5
-                dy = -0.5
+                dx = 1
+                dy = -1
                 n += 1
             elif keys[pygame.K_RIGHT] and keys[pygame.K_DOWN]:
-                dx = 0.5
-                dy = 0.5
+                dx = 1
+                dy = 1
                 n += 1
 
             player_pos = update_position(player_pos, dx, dy)
@@ -282,39 +277,41 @@ def main_game_loop():
             # Вычисляем направление движения к цели
             if player_pos[0] > target_pos[0]:
                 dx = -1  # Движение влево
-                print("Расстояние до цели:" + str(distance))
             elif player_pos[0] < target_pos[0]:
                 dx = 1  # Движение вправо
-                print("Расстояние до цели:" + str(distance))
             if player_pos[1] > target_pos[1]:
                 dy = -1  # Движение вверх
-                print("Расстояние до цели:" + str(distance))
             elif player_pos[1] < target_pos[1]:
                 dy = 1  # Движение вниз
-                print("Расстояние до цели:" + str(distance))
 
             # Диагональное движение
             if abs(player_pos[0] - target_pos[0]) == abs(player_pos[1] - target_pos[1]):
                 if dx != 0 and dy != 0:
-                    dx *= 0.5
-                    dy *= 0.5
-                print("Расстояние до цели:" + str(distance))
+                    dx *= 1
+                    dy *= 1
 
             # Поворот в углу для цели
             if (player_pos[0] == target_pos[0] and player_pos[1] < target_pos[1]) or \
                     (player_pos[0] < target_pos[0] and player_pos[1] == target_pos[1]):
-                dx = 0.5
-                dy = 0.5
-            elif (player_pos[0] == target_pos[0] and player_pos[1] > target_pos[1]) or \
-                    (player_pos[0] > target_pos[0] and player_pos[1] == target_pos[1]):
-                dx = -0.5
-                dy = -0.5
+                dx = 1
+                dy = 1
+            elif (player_pos[0] == target_pos[0] and player_pos[1] >= target_pos[1]) or \
+                    (player_pos[0] >= target_pos[0] and player_pos[1] == target_pos[1]):
+                dx = -1
+                dy = -1
 
+            # Проверяем, чтобы игрок не застревал в боковых стенках
+            if (target_pos[0] == 0 and dx == -1) or (target_pos[0] == GRID_WIDTH - 1 and dx == 1):
+                dx = 0
+            if (target_pos[1] == 0 and dy == -1) or (target_pos[1] == GRID_HEIGHT - 1 and dy == 1):
+                dy = 0
+
+            print("Расстояние до цели:" + str(path))
             target_pos = update_position(target_pos, dx, dy)
             n = 0
 
-        distance = get_distance(player_pos, target_pos)
-        if distance == 0:
+        path = get_distance(player_pos, target_pos)
+        if path == 0:
             print("Вы поймали цель!")
             running = False
             continue
@@ -322,7 +319,7 @@ def main_game_loop():
         screen.fill(WHITE)
         draw_grid()
         draw_player(player_pos, BLUE)
-        #draw_player(target_pos, RED)
+        draw_player(target_pos, RED)
 
         pygame.display.flip()
 
